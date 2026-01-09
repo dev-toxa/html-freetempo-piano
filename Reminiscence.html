@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,
+     initial-scale=1.0">
+    <title>freetempo-piano</title>
+    <script src="https://cdn.jsdelivr.net/npm/tone@14.8.16"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            border-collapse: collapse;
+        }
+
+        html,
+        body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 800px;
+        }
+
+        body {
+            background-color: black;
+            filter: invert(1);
+        }
+
+        #sheet {
+            visibility: hidden;
+        }
+
+        #track {
+            width: auto;
+            height: 800px;
+            position: absolute;
+            left: 0;
+            top: 0;
+        }
+
+        .note {
+            width: 10px;
+            display: inline-block;
+            text-align: left;
+            vertical-align: middle;
+        }
+
+        .midi {
+            width: 10px;
+            height: 10px;
+            border: 1px solid black;
+            display: block;
+            font-size: 5px;
+        }
+
+        .black {
+            background-color: black;
+            color: white;
+            font-size: 5px;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="track">
+
+    </div>
+    <script>
+        const keyObject = {
+            "1": "C1",
+            "!": "C#1",
+            "2": "D1",
+            "@": "D#1",
+            "3": "E1",
+            "4": "F1",
+            "$": "F#1",
+            "5": "G1",
+            "%": "G#1",
+            "6": "A1",
+            "^": "A#1",
+            "7": "B1",
+            "8": "C2",
+            "*": "C#2",
+            "9": "D2",
+            "(": "D#2",
+            "0": "E2",
+            "q": "F2",
+            "Q": "F#2",
+            "w": "G2",
+            "W": "G#2",
+            "e": "A2",
+            "E": "A#2",
+            "r": "B2",
+            "t": "C3",
+            "T": "C#3",
+            "y": "D3",
+            "Y": "D#3",
+            "u": "E3",
+            "i": "F3",
+            "I": "F#3",
+            "o": "G3",
+            "O": "G#3",
+            "p": "A3",
+            "P": "A#3",
+            "a": "B3",
+            "s": "C4",
+            "S": "C#4",
+            "d": "D4",
+            "D": "D#4",
+            "f": "E4",
+            "g": "F4",
+            "G": "F#4",
+            "h": "G4",
+            "H": "G#4",
+            "j": "A4",
+            "J": "A#4",
+            "k": "B4",
+            "l": "C5",
+            "L": "C#5",
+            "z": "D5",
+            "Z": "D#5",
+            "x": "E5",
+            "c": "F5",
+            "C": "F#5",
+            "v": "G5",
+            "V": "G#5",
+            "b": "A5",
+            "B": "A#5",
+            "n": "B5",
+            "m": "C6",
+            "M": "C#6"
+        };
+        const keySequence = {
+            "1": 1,
+            "!": 2,
+            "2": 3,
+            "@": 4,
+            "3": 5,
+            "4": 6,
+            "$": 7,
+            "5": 8,
+            "%": 9,
+            "6": 10,
+            "^": 11,
+            "7": 12,
+            "8": 13,
+            "*": 14,
+            "9": 15,
+            "(": 16,
+            "0": 17,
+            "q": 18,
+            "Q": 19,
+            "w": 20,
+            "W": 21,
+            "e": 22,
+            "E": 23,
+            "r": 24,
+            "t": 25,
+            "T": 26,
+            "y": 27,
+            "Y": 28,
+            "u": 29,
+            "i": 30,
+            "I": 31,
+            "o": 32,
+            "O": 33,
+            "p": 34,
+            "P": 35,
+            "a": 36,
+            "s": 37,
+            "S": 38,
+            "d": 39,
+            "D": 40,
+            "f": 41,
+            "g": 42,
+            "G": 43,
+            "h": 44,
+            "H": 45,
+            "j": 46,
+            "J": 47,
+            "k": 48,
+            "l": 49,
+            "L": 50,
+            "z": 51,
+            "Z": 52,
+            "x": 53,
+            "c": 54,
+            "C": 55,
+            "v": 56,
+            "V": 57,
+            "b": 58,
+            "B": 59,
+            "n": 60,
+            "m": 61,
+            "M": 62,
+        }
+        // const synth = new Tone.PolySynth(Tone.Synth, {
+        //     volume: -13, // ⭐ 핵심
+        //     oscillator: { type: "sine" },//sawtooth, triangle
+        //     envelope: {
+        //         attack: 0.03,
+        //         decay: 0.1,
+        //         sustain: 0.4,
+        //         release: 0.6
+        //     }
+        // }).toDestination();
+        const emotional = new Tone.Sampler({
+            urls: {
+                "C1": "c1.mp3",
+                "C#1": "cs1.mp3",
+                "D1": "d1.mp3",
+                "D#1": "ds1.mp3",
+                "E1": "e1.mp3",
+                "F1": "e1.mp3",
+                "F#1": "fs1.mp3",
+                "G1": "g1.mp3",
+                "G#1": "gs1.mp3",
+                "A1": "a1.mp3",
+                "A#1": "as1.mp3",
+                "B1": "b1.mp3",
+                "C2": "c2.mp3",
+                "C#2": "cs2.mp3",
+                "D2": "d2.mp3",
+                "D#2": "ds2.mp3",
+                "E2": "e2.mp3",
+                "F2": "f2.mp3",
+                "F#2": "fs2.mp3",
+                "G2": "g2.mp3",
+                "G#2": "gs2.mp3",
+                "A2": "a2.mp3",
+                "A#2": "as2.mp3",
+                "B2": "b2.mp3",
+                "C3": "c3.mp3",
+                "C#3": "cs3.mp3",
+                "D3": "d3.mp3",
+                "D#3": "ds3.mp3",
+                "E3": "e3.mp3",
+                "F3": "f3.mp3",
+                "F#3": "fs3.mp3",
+                "G3": "g3.mp3",
+                "G#3": "gs3.mp3",
+                "A3": "a3.mp3",
+                "A#3": "as3.mp3",
+                "B3": "b3.mp3",
+                "C4": "c4.mp3",
+                "C#4": "cs4.mp3",
+                "D4": "d4.mp3",
+                "D#4": "ds4.mp3",
+                "E4": "e4.mp3",
+                "F4": "f4.mp3",
+                "F#4": "fs4.mp3",
+                "G4": "g4.mp3",
+                "G#4": "gs4.mp3",
+                "A4": "a4.mp3",
+                "A#4": "as4.mp3",
+                "B4": "b4.mp3",
+                "C5": "c5.mp3",
+                "C#5": "cs5.mp3",
+                "D5": "d5.mp3",
+                "D#5": "ds5.mp3",
+                "E5": "e5.mp3",
+                "F5": "f5.mp3",
+                "F#5": "fs5.mp3",
+                "G5": "g5.mp3",
+                "G#5": "gs5.mp3",
+                "A5": "a5.mp3",
+                "A#5": "as5.mp3",
+                "B5": "b5.mp3",
+                "C6": "c6.mp3",
+                "C#6": "cs6.mp3",
+            },
+            volume: -13, // ⭐ 핵심
+            baseUrl: "./sound/Emotional/",
+            attack: 0.01,
+            release: 1.5,
+        }).toDestination();
+        console.log(keyObject);
+        let sheet = `
+[dgjx] z v [odkx] z l
+[pdhk] l k [osh] h l z
+[isjx] z v [Huax] [zn] [xm]
+[pzn] f [kv] h x [Jodgz] [Ptfl]
+[ishjx] z v [odkx] z l
+[pdhk] l z [odh] f h
+[ij] s j g x
+[ypdgl] [uak]
+[6sfj] 0 e r t o r t 6 0 e r t o t r
+6 0 e r t o r t 6
+[9ipf] e y [ipd] e [iah] y [woaf] y o [ad] y [ah] o
+[6yoa] 0 e [yos] 0 e [yoa] [5yo] w [tu] r
+[qopf] t i [opd] t [ah] i t [O0df] r u [dk] r [ufl]
+[6dk] 0 e [ah] r y o f u o y t y u o
+[qpf] t i d t [ah] i [waf] y o [ad] [ah] o y
+[6yoa] 0 e [yos] r t [yoa] [5yo] w t [uo]
+[qtp] i [opf] t i [O0ys] d f
+[6ya] 0 [eyo] 0 p [6yoa]
+[qtp] [if] [of] t i o [wp] [yf] a o y o
+[edh] u [ad] p [sf] u [ad] e u p s u a d
+[qop] t [pf] i p t f [wa] y h o g y
+[8osf] w t [ydk] [fl] [dk] [ah] y f
+[qp] t i [pf] o p f [wa] y o [adh] o [adg]
+[6osf] 0 e [tdk] [fl] [wdk] u [ah] o f
+[Qps] t [up] s [qis] t [pd] i [sf]
+[6yoa] 0 e r [6eiTP] [fx]
+[9yip] e [ipf] 8 7 6 [5oah] [2ag] f
+[8od] w [ts] [yd] u [of] o 6 0 e r t o s o
+[9i] e y p e f y [O0yd] r [ydk]
+[esh] u p [of] u [Pwid] [QOus]
+[qosf] t o i s d [Oqiaf] [0uG] H j k
+[edz] u [pfl] [dk] [fl] w [ush] o [sh]
+[qsj] t [id] s [9ips] e [yipd] [yd] [uf]
+[30] [O30uf] [30] [30pIG] [30] [30aOH] [30]
+[29sgj] [egjx] [ygjz] i [5wsgj] u [gkx] a [gjz] w W
+[6edhk] u [pfhl] s [dhk] t [fh] [6e] s [5wsf] o
+[4qsj] i [gjx] [gjz] u [30kHV] y a [fx] [kn] [lm]
+[6ekzvn] u [kzv] [ad] [pshlx] [5wgz] [$Qfl]
+[4qsgj] 8 q [fx] t [dz] q [5wsgj] t [hv] o [gc]
+[6ehlx] u [pzn] s d [xm] [5wzn] u [olv]
+[4qjb] t [ifx] [dz] w [sl] q [dk] 0
+[29sgj] 6 [9sgj] [sl] [dz] [?7gjx] [30sH] d f h
+[4qsj] 8 q [tfjx] [ifjz] t [5dj] 9 w [ygx] [ohz]
+[6dk] 0 e [ydk] u [pfl] [dk] 6 [0sh] e [yf] o [sh]
+[4qsj] [fjx] i [djz] t [30kV] r O [fx] [kn] [lm]
+[6ekn] 0 [kv] [ahx] o [fl] [J5whz] [8tfjx] w
+[qifhx] t [djz] i [sjl] [H30fx] [kn] [fx] [dz]
+[6ekzvn] [kv] [hx] [G9ydl]
+[9qyip] s y d [O0yaf] d s d
+[6yoa] 0 e [ys] e [ya] [6oTP]
+[9ti] p s d
+f [0ryI] [uO] a s
+[6ya] e t [up] 0 [eu] 6 0 e t [up] 6 0 t
+[^Ey] q E y p q y [^yp] q E y [qp] y
+[6yoa] 0 e [tp] e [ya] [6us] 0 e [of] 0 [ah] e
+[^dl] q E [sj] q [^Eqsj] [gl] x
+[60ehz]
+`;
+        console.log(sheet.split(/[\[\]\s]+/).filter(Boolean));
+        let array = sheet.split(/[\[\]\s]+/).filter(Boolean);
+        let track = document.getElementById('track');
+        for (let i = 0; i < array.length; i++) {
+            let note = document.createElement('div');
+            note.className = 'note white';
+            for (let j = 0; j < array[i].length; j++) {
+                console.log(keyObject[array[i].charAt(j)]);
+                let midi = document.createElement("div");
+                midi.innerHTML = keyObject[array[i].charAt(j)];
+                midi.style = `position:absolute;top:${800 - keySequence[array[i].charAt(j)] * 10}px;left:${i * 10}px`;
+
+                if (midi.innerHTML.includes("#")) {
+                    midi.className = 'midi black';
+                } else {
+                    midi.className = 'midi white';
+                }
+
+                note.append(midi);
+            }
+            console.log(array[i]);
+            track.append(note);
+        }
+        let noteElements = document.getElementsByClassName('note');
+        let cursor = 0;
+        document.addEventListener('keydown', function (e) {
+            let array = [];
+            let midiElements = noteElements[0].getElementsByClassName('midi');
+            for (let i = 0; i < midiElements.length; i++) {
+                array.push(midiElements[i].innerHTML);
+            }
+            console.log(array);
+            emotional.triggerAttackRelease(array, "4n");
+            noteElements[0].remove();
+            let track = document.getElementById('track');
+            cursor -= 10;
+            track.style.left = cursor + 'px';
+        });
+    </script>
+</body>
+
+</html>

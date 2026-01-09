@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>16:10 Optimized Piano Roll</title>
+    <script src="https://cdn.jsdelivr.net/npm/tone@14.8.16"></script>
+    <script src="https://unpkg.com/@tonejs/midi"></script>
+    <style>
+        body {
+            background-color: #000;
+            color: #fff;
+            margin: 0;
+            overflow: hidden;
+            font-family: 'Segoe UI', sans-serif;
+        }
+
+        #controls {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 100;
+            background: rgba(20, 20, 20, 0.9);
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #444;
+        }
+
+        #playhead {
+            position: absolute;
+            bottom: 100px;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            background: #00ffcc;
+            box-shadow: 0 0 20px #00ffcc;
+            z-index: 10;
+        }
+
+        #track-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            background: #050505;
+        }
+
+        #track {
+            position: absolute;
+            bottom: 100px;
+            left: 0;
+            width: 100%;
+            will-change: transform;
+        }
+
+        .midi-note {
+            position: absolute;
+            border-radius: 4px;
+            box-sizing: border-box;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            display: flex;
+            /* 텍스트를 노트의 가장 아래쪽(판정선 방향)에 배치 */
+            align-items: flex-end;
+            justify-content: center;
+            padding-bottom: 5px;
+            /* 하단 여백 */
+            overflow: hidden;
+        }
+
+        .note-text {
+            font-size: 10px;
+            font-weight: 800;
+            pointer-events: none;
+            /* 텍스트가 클릭 방해 안하게 */
+            text-shadow: 0px 0px 4px rgba(0, 0, 0, 0.8);
+            white-space: nowrap;
+        }
+
+        .white-note {
+            background: linear-gradient(to top, #ffffff 0%, #a0a0a0 100%);
+            color: #000;
+        }
+
+        .black-note {
+            background: linear-gradient(to top, #444 0%, #111 100%);
+            color: #fff;
+            z-index: 2;
+        }
+
+        button {
+            cursor: pointer;
+            padding: 10px 20px;
+            background: #00ffcc;
+            border: none;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="controls">
+        <input type="file" id="midi-upload" accept=".mid,.midi">
+        <button id="start-btn" disabled>Loading Samples...</button>
+        <div id="status">Waiting for audio samples...</div>
+    </div>
+
+    <div id="playhead"></div>
+    <div id="track-container">
+        <div id="track"></div>
+    </div>
+
+    <script>
+        const PIXELS_PER_SECOND = 400;
+        let isPlaying = false;
+        let currentMidi = null;
+        const midiMap = {
+            "C1": "1",
+            "C#1": "!",
+            "D1": "2",
+            "D#1": "@",
+            "E1": "3",
+            "F1": "4",
+            "F#1": "$",
+            "G1": "5",
+            "G#1": "%",
+            "A1": "6",
+            "A#1": "^",
+            "B1": "7",
+            "C2": "8",
+            "C#2": "*",
+            "D2": "9",
+            "D#2": "(",
+            "E2": "0",
+            "F2": "q",
+            "F#2": "Q",
+            "G2": "w",
+            "G#2": "W",
+            "A2": "e",
+            "A#2": "E",
+            "B2": "r",
+            "C3": "t",
+            "C#3": "T",
+            "D3": "y",
+            "D#3": "Y",
+            "E3": "u",
+            "F3": "i",
+            "F#3": "I",
+            "G3": "o",
+            "G#3": "O",
+            "A3": "p",
+            "A#3": "P",
+            "B3": "a",
+            "C4": "s",
+            "C#4": "S",
+            "D4": "d",
+            "D#4": "D",
+            "E4": "f",
+            "F4": "g",
+            "F#4": "G",
+            "G4": "h",
+            "G#4": "H",
+            "A4": "j",
+            "A#4": "J",
+            "B4": "k",
+            "C5": "l",
+            "C#5": "L",
+            "D5": "z",
+            "D#5": "Z",
+            "E5": "x",
+            "F5": "c",
+            "F#5": "C",
+            "G5": "v",
+            "G#5": "V",
+            "A5": "b",
+            "A#5": "B",
+            "B5": "n",
+            "C6": "m",
+            "C#6": "M",
+        }
+        const sampler = new Tone.Sampler({
+            urls: {
+                "C1": "c1.mp3", "C#1": "cs1.mp3", "D1": "d1.mp3", "D#1": "ds1.mp3", "E1": "e1.mp3",
+                "F1": "f1.mp3", "F#1": "fs1.mp3", "G1": "g1.mp3", "G#1": "gs1.mp3", "A1": "a1.mp3", "A#1": "as1.mp3", "B1": "b1.mp3",
+                "C2": "c2.mp3", "C#2": "cs2.mp3", "D2": "d2.mp3", "D#2": "ds2.mp3", "E2": "e2.mp3",
+                "F2": "f2.mp3", "F#2": "fs2.mp3", "G2": "g2.mp3", "G#2": "gs2.mp3", "A2": "a2.mp3", "A#2": "as2.mp3", "B2": "b2.mp3",
+                "C3": "c3.mp3", "C#3": "cs3.mp3", "D3": "d3.mp3", "D#3": "ds3.mp3", "E3": "e3.mp3",
+                "F3": "f3.mp3", "F#3": "fs3.mp3", "G3": "g3.mp3", "G#3": "gs3.mp3", "A3": "a3.mp3", "A#3": "as3.mp3", "B3": "b3.mp3",
+                "C4": "c4.mp3", "C#4": "cs4.mp3", "D4": "d4.mp3", "D#4": "ds4.mp3", "E4": "e4.mp3",
+                "F4": "f4.mp3", "F#4": "fs4.mp3", "G4": "g4.mp3", "G#4": "gs4.mp3", "A4": "a4.mp3", "A#4": "as4.mp3", "B4": "b4.mp3",
+                "C5": "c5.mp3", "C#5": "cs5.mp3", "D5": "d5.mp3", "D#5": "ds5.mp3", "E5": "e5.mp3",
+                "F5": "f5.mp3", "F#5": "fs5.mp3", "G5": "g5.mp3", "G#5": "gs5.mp3", "A5": "a5.mp3", "A#5": "as5.mp3", "B5": "b5.mp3",
+                "C6": "c6.mp3", "C#6": "cs6.mp3"
+            },
+            baseUrl: "./sound/SoftPiano/",
+            release: 1.2,
+            onload: () => {
+                document.getElementById('start-btn').disabled = false;
+                document.getElementById('status').innerText = "Sampler Ready.";
+            }
+        }).toDestination();
+
+        function renderMidi() {
+            if (!currentMidi) return;
+            const track = document.getElementById('track');
+            track.innerHTML = "";
+
+            const totalKeys = 88;
+            const noteWidth = window.innerWidth / totalKeys;
+            const minMidi = 21;
+
+            currentMidi.tracks.forEach(t => {
+                t.notes.forEach(note => {
+                    const div = document.createElement('div');
+                    div.className = `midi-note ${note.name.includes('#') ? 'black-note' : 'white-note'}`;
+
+                    const xPos = (note.midi - minMidi) * noteWidth;
+
+                    div.style.left = `${xPos}px`;
+                    div.style.width = `${noteWidth - 1}px`;
+                    div.style.bottom = `${note.time * PIXELS_PER_SECOND}px`;
+                    div.style.height = `${note.duration * PIXELS_PER_SECOND}px`;
+
+                    // 내부 Span 태그로 텍스트 한 번만 생성
+                    const label = document.createElement('span');
+                    label.className = 'note-text';
+                    // label.innerText = note.name;
+                    label.innerText = midiMap[note.name];
+                    div.appendChild(label);
+
+                    track.appendChild(div);
+                });
+            });
+        }
+
+        window.onresize = renderMidi;
+
+        document.getElementById('midi-upload').onchange = async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const arrayBuffer = await file.arrayBuffer();
+            currentMidi = new Midi(arrayBuffer);
+            renderMidi();
+            document.getElementById('status').innerText = "MIDI Loaded.";
+        };
+
+        function updateAnimation() {
+            if (isPlaying) {
+                const offset = Tone.Transport.seconds * PIXELS_PER_SECOND;
+                document.getElementById('track').style.transform = `translateY(${offset}px)`;
+            }
+            requestAnimationFrame(updateAnimation);
+        }
+        updateAnimation();
+
+        document.getElementById('start-btn').onclick = async () => {
+            await Tone.start();
+            Tone.Transport.stop();
+            Tone.Transport.cancel();
+            Tone.Transport.seconds = 0;
+
+            currentMidi.tracks.forEach(track => {
+                track.notes.forEach(note => {
+                    Tone.Transport.schedule(t => {
+                        sampler.triggerAttack(note.name, t, note.velocity);
+                    }, note.time);
+                    Tone.Transport.schedule(t => {
+                        sampler.triggerRelease(note.name, t);
+                    }, note.time + note.duration);
+                });
+            });
+
+            Tone.Transport.start();
+            isPlaying = true;
+            document.getElementById('status').innerText = "Playing...";
+        };
+    </script>
+</body>
+
+</html>

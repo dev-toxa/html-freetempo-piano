@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MIDI Time-based Piano Roll</title>
+    <script src="https://cdn.jsdelivr.net/npm/tone@14.8.16"></script>
+    <script src="https://unpkg.com/@tonejs/midi"></script>
+    <style>
+        body {
+            background-color: #000;
+            color: #fff;
+            margin: 0;
+            overflow: hidden;
+            font-family: sans-serif;
+        }
+
+        /* 재생 바 (현재 연주 위치) */
+        #playhead {
+            position: absolute;
+            left: 50px;
+            top: 0;
+            width: 2px;
+            height: 100%;
+            background: red;
+            z-index: 10;
+        }
+
+        #track-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        #track {
+            position: absolute;
+            left: 50px;
+            /* playhead 위치와 맞춤 */
+            top: 0;
+            height: 100%;
+            will-change: transform;
+        }
+
+        .midi-note {
+            position: absolute;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            font-size: 8px;
+            border-radius: 2px;
+        }
+
+        .white-note {
+            background-color: #eee;
+            color: #000;
+        }
+
+        .black-note {
+            background-color: #444;
+            color: #fff;
+        }
+
+        #controls {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            z-index: 100;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 10px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="controls">
+        <input type="file" id="midi-upload" accept=".mid,.midi">
+        <button id="start-btn" disabled>Loading Samples...</button>
+        <span id="status">Wait for sampler...</span>
+    </div>
+
+    <div id="playhead"></div>
+    <div id="track-container">
+        <div id="track"></div>
+    </div>
+
+    <script>
+        // 1. 샘플러 설정 (이전 코드의 샘플 경로 사용)
+        const sampler = new Tone.Sampler({
+            urls: {
+                "C1": "c1.mp3",
+                "C#1": "cs1.mp3",
+                "D1": "d1.mp3",
+                "D#1": "ds1.mp3",
+                "E1": "e1.mp3",
+                "F1": "e1.mp3",
+                "F#1": "fs1.mp3",
+                "G1": "g1.mp3",
+                "G#1": "gs1.mp3",
+                "A1": "a1.mp3",
+                "A#1": "as1.mp3",
+                "B1": "b1.mp3",
+                "C2": "c2.mp3",
+                "C#2": "cs2.mp3",
+                "D2": "d2.mp3",
+                "D#2": "ds2.mp3",
+                "E2": "e2.mp3",
+                "F2": "f2.mp3",
+                "F#2": "fs2.mp3",
+                "G2": "g2.mp3",
+                "G#2": "gs2.mp3",
+                "A2": "a2.mp3",
+                "A#2": "as2.mp3",
+                "B2": "b2.mp3",
+                "C3": "c3.mp3",
+                "C#3": "cs3.mp3",
+                "D3": "d3.mp3",
+                "D#3": "ds3.mp3",
+                "E3": "e3.mp3",
+                "F3": "f3.mp3",
+                "F#3": "fs3.mp3",
+                "G3": "g3.mp3",
+                "G#3": "gs3.mp3",
+                "A3": "a3.mp3",
+                "A#3": "as3.mp3",
+                "B3": "b3.mp3",
+                "C4": "c4.mp3",
+                "C#4": "cs4.mp3",
+                "D4": "d4.mp3",
+                "D#4": "ds4.mp3",
+                "E4": "e4.mp3",
+                "F4": "f4.mp3",
+                "F#4": "fs4.mp3",
+                "G4": "g4.mp3",
+                "G#4": "gs4.mp3",
+                "A4": "a4.mp3",
+                "A#4": "as4.mp3",
+                "B4": "b4.mp3",
+                "C5": "c5.mp3",
+                "C#5": "cs5.mp3",
+                "D5": "d5.mp3",
+                "D#5": "ds5.mp3",
+                "E5": "e5.mp3",
+                "F5": "f5.mp3",
+                "F#5": "fs5.mp3",
+                "G5": "g5.mp3",
+                "G#5": "gs5.mp3",
+                "A5": "a5.mp3",
+                "A#5": "as5.mp3",
+                "B5": "b5.mp3",
+                "C6": "c6.mp3",
+                "C#6": "cs6.mp3"
+            },
+            baseUrl: "./sound/Emotional/",
+            // attack: 0.01,
+            // release: 1.5,
+            onload: () => {
+                document.getElementById('start-btn').disabled = false;
+                document.getElementById('status').innerText = "Ready to Play";
+            }
+
+        }).toDestination();
+        const PIXELS_PER_SECOND = 100; // 1초당 가로 길이 (박자 간격 조절)
+        const NOTE_HEIGHT = 10;        // 음높이 간격
+
+        document.getElementById('midi-upload').addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const arrayBuffer = await file.arrayBuffer();
+            const midi = new Midi(arrayBuffer);
+
+            renderMidi(midi);
+            setupPlayback(midi);
+        });
+
+        // 2. MIDI 시각화 (시간 간격 기준)
+        function renderMidi(midi) {
+            const track = document.getElementById('track');
+            track.innerHTML = ""; // 초기화
+
+            midi.tracks.forEach(t => {
+                t.notes.forEach(note => {
+                    const div = document.createElement('div');
+                    div.className = `midi-note ${note.name.includes('#') ? 'black-note' : 'white-note'}`;
+
+                    // 시간(time)을 기반으로 가로 위치와 길이를 결정
+                    div.style.left = `${note.time * PIXELS_PER_SECOND}px`;
+                    div.style.width = `${note.duration * PIXELS_PER_SECOND}px`;
+
+                    // MIDI 번호(midi)를 기반으로 세로 위치 결정 (88건반 기준 적절히 조정)
+                    div.style.top = `${800 - (note.midi - 21) * NOTE_HEIGHT}px`;
+                    div.style.height = `${NOTE_HEIGHT}px`;
+
+                    div.innerText = note.name;
+                    track.appendChild(div);
+                });
+            });
+        }
+
+        // 3. 자동 연주 및 스크롤 로직
+        function setupPlayback(midi) {
+            const startBtn = document.getElementById('start-btn');
+
+            startBtn.onclick = async () => {
+                await Tone.start();
+                Tone.Transport.cancel(); // 기존 예약 취소
+
+                midi.tracks.forEach(track => {
+                    new Tone.Part((time, note) => {
+                        sampler.triggerAttackRelease(note.name, note.duration, time, note.velocity);
+
+                        // 화면 동기화 (재생바에 맞춰 트랙 이동)
+                        Tone.Draw.schedule(() => {
+                            const offset = note.time * PIXELS_PER_SECOND;
+                            document.getElementById('track').style.transform = `translateX(-${offset}px)`;
+                        }, time);
+
+                    }, track.notes).start(0);
+                });
+
+                Tone.Transport.start();
+            };
+        }
+    </script>
+</body>
+
+</html>

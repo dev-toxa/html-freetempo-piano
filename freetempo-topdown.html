@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Top-Down MIDI Piano Roll</title>
+    <script src="https://cdn.jsdelivr.net/npm/tone@14.8.16"></script>
+    <script src="https://unpkg.com/@tonejs/midi"></script>
+    <style>
+        body {
+            background-color: #000;
+            color: #fff;
+            margin: 0;
+            overflow: hidden;
+            font-family: sans-serif;
+        }
+
+        /* 판정선: 화면 하단 부근에 고정 */
+        #playhead {
+            position: absolute;
+            bottom: 100px;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            background: #ff0000;
+            box-shadow: 0 0 10px #ff0000;
+            z-index: 10;
+        }
+
+        #track-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        #track {
+            position: absolute;
+            bottom: 100px; /* 판정선 위치와 일치 */
+            left: 0;
+            width: 100%;
+            /* 부드러운 하강 애니메이션 */
+            transition: transform 0.15s ease-out;
+            will-change: transform;
+        }
+
+        .midi-note {
+            position: absolute;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            font-weight: bold;
+            box-sizing: border-box;
+        }
+
+        .white-note { background-color: white; color: black; }
+        .black-note { background-color: black; color: white; }
+
+        #controls {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 100;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #444;
+        }
+
+        button { cursor: pointer; padding: 8px 15px; }
+        input { color: white; }
+    </style>
+</head>
+
+<body>
+
+    <div id="controls">
+        <input type="file" id="midi-upload" accept=".mid,.midi">
+        <button id="start-btn" disabled>Loading Samples...</button>
+        <p id="status" style="margin: 10px 0 0 0; font-size: 14px; color: #aaa;">Wait for sampler...</p>
+    </div>
+
+    <div id="playhead"></div>
+    <div id="track-container">
+        <div id="track"></div>
+    </div>
+
+    <script>
+        const PIXELS_PER_SECOND = 200; // 떨어지는 속도 조절
+        const NOTE_WIDTH = 40;        // 노트 가로 너비
+        let noteGroups = []; 
+        let currentStep = 0;
+        let isReady = false;
+
+        const midiMap = {
+            "C1": "1", "C#1": "!", "D1": "2", "D#1": "@", "E1": "3", "F1": "4", "F#1": "$", "G1": "5", "G#1": "%", "A1": "6", "A#1": "^", "B1": "7",
+            "C2": "8", "C#2": "*", "D2": "9", "D#2": "(", "E2": "0", "F2": "q", "F#2": "Q", "G2": "w", "G#2": "W", "A2": "e", "A#2": "E", "B2": "r",
+            "C3": "t", "C#3": "T", "D3": "y", "D#3": "Y", "E3": "u", "F3": "i", "F#3": "I", "G3": "o", "G#3": "O", "A3": "p", "A#3": "P", "B3": "a",
+            "C4": "s", "C#4": "S", "D4": "d", "D#4": "D", "E4": "f", "F4": "g", "F#4": "G", "G4": "h", "G#4": "H", "A4": "j", "A#4": "J", "B4": "k",
+            "C5": "l", "C#5": "L", "D5": "z", "D#5": "Z", "E5": "x", "F5": "c", "F#5": "C", "G5": "v", "G#5": "V", "A5": "b", "A#5": "B", "B5": "n",
+            "C6": "m", "C#6": "M"
+        };
+
+        const sampler = new Tone.Sampler({
+            urls: {
+                "C1": "c1.mp3", "C#1": "cs1.mp3", "D1": "d1.mp3", "D#1": "ds1.mp3", "E1": "e1.mp3", "F1": "f1.mp3", "F#1": "fs1.mp3", "G1": "g1.mp3", "G#1": "gs1.mp3", "A1": "a1.mp3", "A#1": "as1.mp3", "B1": "b1.mp3",
+                "C2": "c2.mp3", "C#2": "cs2.mp3", "D2": "d2.mp3", "D#2": "ds2.mp3", "E2": "e2.mp3", "F2": "f2.mp3", "F#2": "fs2.mp3", "G2": "g2.mp3", "G#2": "gs2.mp3", "A2": "a2.mp3", "A#2": "as2.mp3", "B2": "b2.mp3",
+                "C3": "c3.mp3", "C#3": "cs3.mp3", "D3": "d3.mp3", "D#3": "ds3.mp3", "E3": "e3.mp3", "F3": "f3.mp3", "F#3": "fs3.mp3", "G3": "g3.mp3", "G#3": "gs3.mp3", "A3": "a3.mp3", "A#3": "as3.mp3", "B3": "b3.mp3",
+                "C4": "c4.mp3", "C#4": "cs4.mp3", "D4": "d4.mp3", "D#4": "ds4.mp3", "E4": "e4.mp3", "F4": "f4.mp3", "F#4": "fs4.mp3", "G4": "g4.mp3", "G#4": "gs4.mp3", "A4": "a4.mp3", "A#4": "as4.mp3", "B4": "b4.mp3",
+                "C5": "c5.mp3", "C#5": "cs5.mp3", "D5": "d5.mp3", "D#5": "ds5.mp3", "E5": "e5.mp3", "F5": "f5.mp3", "F#5": "fs5.mp3", "G5": "g5.mp3", "G#5": "gs5.mp3", "A5": "a5.mp3", "A#5": "as5.mp3", "B5": "b5.mp3",
+                "C6": "c6.mp3", "C#6": "cs6.mp3"
+            },
+            baseUrl: "./sound/Emotional/",
+            release: 1.5,
+            onload: () => {
+                document.getElementById('start-btn').disabled = false;
+                document.getElementById('status').innerText = "Upload MIDI and Click Start";
+            }
+        }).toDestination();
+
+        document.getElementById('midi-upload').addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const arrayBuffer = await file.arrayBuffer();
+            const midi = new Midi(arrayBuffer);
+            renderMidi(midi);
+            prepareGroups(midi);
+        });
+
+        function renderMidi(midi) {
+            const trackElement = document.getElementById('track');
+            trackElement.innerHTML = "";
+            trackElement.style.transform = `translateY(0px)`;
+
+            midi.tracks.forEach(t => {
+                t.notes.forEach(note => {
+                    const div = document.createElement('div');
+                    div.className = `midi-note ${note.name.includes('#') ? 'black-note' : 'white-note'}`;
+                    
+                    // 세로형 배치 로직 (Top-Down)
+                    // Y축: 시간 (뒤에 나오는 음일수록 더 높은 위치에 배치)
+                    div.style.bottom = `${note.time * PIXELS_PER_SECOND}px`;
+                    div.style.height = `${note.duration * PIXELS_PER_SECOND}px`;
+                    
+                    // X축: 음높이 (낮은 음이 왼쪽, 높은 음이 오른쪽)
+                    // MIDI Note 21(A0) ~ 108(C8) 범위를 화면 중앙에 배치
+                    const xPos = (note.midi - 40) * NOTE_WIDTH; 
+                    div.style.left = `${xPos}px`;
+                    div.style.width = `${NOTE_WIDTH - 2}px`;
+                    
+                    div.innerText = midiMap[note.name] || "";
+                    trackElement.appendChild(div);
+                });
+            });
+        }
+
+        function prepareGroups(midi) {
+            let allNotes = [];
+            midi.tracks.forEach(t => allNotes.push(...t.notes));
+            allNotes.sort((a, b) => a.time - b.time);
+
+            noteGroups = [];
+            if (allNotes.length === 0) return;
+
+            let currentGroup = [allNotes[0]];
+            for (let i = 1; i < allNotes.length; i++) {
+                if (allNotes[i].time - currentGroup[0].time < 0.02) {
+                    currentGroup.push(allNotes[i]);
+                } else {
+                    noteGroups.push(currentGroup);
+                    currentGroup = [allNotes[i]];
+                }
+            }
+            noteGroups.push(currentGroup);
+            currentStep = 0;
+            document.getElementById('status').innerText = "MIDI Loaded. Click 'Start'!";
+        }
+
+        document.getElementById('start-btn').onclick = async () => {
+            await Tone.start();
+            isReady = true;
+            currentStep = 0;
+            document.getElementById('status').innerText = "Press ANY KEY to Play!";
+            document.getElementById('start-btn').blur();
+        };
+
+        window.addEventListener('keydown', (e) => {
+            if (!isReady || currentStep >= noteGroups.length) return;
+
+            const notesToPlay = noteGroups[currentStep];
+            const now = Tone.now();
+
+            notesToPlay.forEach(note => {
+                sampler.triggerAttackRelease(note.name, note.duration, now, note.velocity);
+            });
+
+            // 연주된 음의 시간만큼 트랙을 아래로 이동 (노트들이 판정선으로 내려옴)
+            const targetOffset = notesToPlay[0].time * PIXELS_PER_SECOND;
+            document.getElementById('track').style.transform = `translateY(${targetOffset}px)`;
+
+            currentStep++;
+            document.getElementById('status').innerText = `Step: ${currentStep} / ${noteGroups.length}`;
+
+            if (currentStep >= noteGroups.length) {
+                document.getElementById('status').innerText = "Song Finished!";
+            }
+        });
+    </script>
+</body>
+
+</html>

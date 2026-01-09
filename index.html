@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,
+     initial-scale=1.0">
+    <title>freetempo-piano</title>
+    <script src="https://cdn.jsdelivr.net/npm/tone@14.8.16"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            border-collapse: collapse;
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 800px;
+        }
+
+        body {
+            background-color: black;
+            filter: invert(1);
+        }
+
+        #sheet {
+            visibility: hidden;
+        }
+
+        #track {
+            width: auto;
+            height: 800px;
+            position: absolute;
+            left: 0;
+            top: 0;
+        }
+
+        .note {
+            width: 10px;
+            display: inline-block;
+            text-align: left;
+            vertical-align: middle;
+        }
+
+        .midi {
+            width: 10px;
+            height: 10px;
+            display: block;
+            font-size: 5px;
+        }
+
+        .black {
+            color: white;
+            font-size: 5px;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="track">
+
+    </div>
+    <script>
+        const keyObject = {
+            "1": "C1",
+            "!": "C#1",
+            "2": "D1",
+            "@": "D#1",
+            "3": "E1",
+            "4": "F1",
+            "$": "F#1",
+            "5": "G1",
+            "%": "G#1",
+            "6": "A1",
+            "^": "A#1",
+            "7": "B1",
+            "8": "C2",
+            "*": "C#2",
+            "9": "D2",
+            "(": "D#2",
+            "0": "E2",
+            "q": "F2",
+            "Q": "F#2",
+            "w": "G2",
+            "W": "G#2",
+            "e": "A2",
+            "E": "A#2",
+            "r": "B2",
+            "t": "C3",
+            "T": "C#3",
+            "y": "D3",
+            "Y": "D#3",
+            "u": "E3",
+            "i": "F3",
+            "I": "F#3",
+            "o": "G3",
+            "O": "G#3",
+            "p": "A3",
+            "P": "A#3",
+            "a": "B3",
+            "s": "C4",
+            "S": "C#4",
+            "d": "D4",
+            "D": "D#4",
+            "f": "E4",
+            "g": "F4",
+            "G": "F#4",
+            "h": "G4",
+            "H": "G#4",
+            "j": "A4",
+            "J": "A#4",
+            "k": "B4",
+            "l": "C5",
+            "L": "C#5",
+            "z": "D5",
+            "Z": "D#5",
+            "x": "E5",
+            "c": "F5",
+            "C": "F#5",
+            "v": "G5",
+            "V": "G#5",
+            "b": "A5",
+            "B": "A#5",
+            "n": "B5",
+            "m": "C6",
+            "M": "C#6"
+        };
+        const keySequence = {
+            "1": 1,
+            "!": 2,
+            "2": 3,
+            "@": 4,
+            "3": 5,
+            "4": 6,
+            "$": 7,
+            "5": 8,
+            "%": 9,
+            "6": 10,
+            "^": 11,
+            "7": 12,
+            "8": 13,
+            "*": 14,
+            "9": 15,
+            "(": 16,
+            "0": 17,
+            "q": 18,
+            "Q": 19,
+            "w": 20,
+            "W": 21,
+            "e": 22,
+            "E": 23,
+            "r": 24,
+            "t": 25,
+            "T": 26,
+            "y": 27,
+            "Y": 28,
+            "u": 29,
+            "i": 30,
+            "I": 31,
+            "o": 32,
+            "O": 33,
+            "p": 34,
+            "P": 35,
+            "a": 36,
+            "s": 37,
+            "S": 38,
+            "d": 39,
+            "D": 40,
+            "f": 41,
+            "g": 42,
+            "G": 43,
+            "h": 44,
+            "H": 45,
+            "j": 46,
+            "J": 47,
+            "k": 48,
+            "l": 49,
+            "L": 50,
+            "z": 51,
+            "Z": 52,
+            "x": 53,
+            "c": 54,
+            "C": 55,
+            "v": 56,
+            "V": 57,
+            "b": 58,
+            "B": 59,
+            "n": 60,
+            "m": 61,
+            "M": 62,
+        }
+        // const synth = new Tone.PolySynth(Tone.Synth, {
+        //     volume: -13, // ⭐ 핵심
+        //     oscillator: { type: "sine" },//sawtooth, triangle
+        //     envelope: {
+        //         attack: 0.03,
+        //         decay: 0.1,
+        //         sustain: 0.4,
+        //         release: 0.6
+        //     }
+        // }).toDestination();
+        const emotional = new Tone.Sampler({
+            urls: {
+                "C1": "c1.mp3",
+                "C#1": "cs1.mp3",
+                "D1": "d1.mp3",
+                "D#1": "ds1.mp3",
+                "E1": "e1.mp3",
+                "F1": "e1.mp3",
+                "F#1": "fs1.mp3",
+                "G1": "g1.mp3",
+                "G#1": "gs1.mp3",
+                "A1": "a1.mp3",
+                "A#1": "as1.mp3",
+                "B1": "b1.mp3",
+                "C2": "c2.mp3",
+                "C#2": "cs2.mp3",
+                "D2": "d2.mp3",
+                "D#2": "ds2.mp3",
+                "E2": "e2.mp3",
+                "F2": "f2.mp3",
+                "F#2": "fs2.mp3",
+                "G2": "g2.mp3",
+                "G#2": "gs2.mp3",
+                "A2": "a2.mp3",
+                "A#2": "as2.mp3",
+                "B2": "b2.mp3",
+                "C3": "c3.mp3",
+                "C#3": "cs3.mp3",
+                "D3": "d3.mp3",
+                "D#3": "ds3.mp3",
+                "E3": "e3.mp3",
+                "F3": "f3.mp3",
+                "F#3": "fs3.mp3",
+                "G3": "g3.mp3",
+                "G#3": "gs3.mp3",
+                "A3": "a3.mp3",
+                "A#3": "as3.mp3",
+                "B3": "b3.mp3",
+                "C4": "c4.mp3",
+                "C#4": "cs4.mp3",
+                "D4": "d4.mp3",
+                "D#4": "ds4.mp3",
+                "E4": "e4.mp3",
+                "F4": "f4.mp3",
+                "F#4": "fs4.mp3",
+                "G4": "g4.mp3",
+                "G#4": "gs4.mp3",
+                "A4": "a4.mp3",
+                "A#4": "as4.mp3",
+                "B4": "b4.mp3",
+                "C5": "c5.mp3",
+                "C#5": "cs5.mp3",
+                "D5": "d5.mp3",
+                "D#5": "ds5.mp3",
+                "E5": "e5.mp3",
+                "F5": "f5.mp3",
+                "F#5": "fs5.mp3",
+                "G5": "g5.mp3",
+                "G#5": "gs5.mp3",
+                "A5": "a5.mp3",
+                "A#5": "as5.mp3",
+                "B5": "b5.mp3",
+                "C6": "c6.mp3",
+                "C#6": "cs6.mp3",
+            },
+            volume: -12,
+            baseUrl: "./sound/Emotional/",
+            attack: 0.01,
+            release: 1.5,
+        }).toDestination();
+        console.log(keyObject);
+        let sheet = `
+        [sf] [dg] [sf] [dg] [sf] [dg]
+        [ad] [sf] [ad] [sf] [ad] [sf]
+        [ps] [ad] [ps] [ad] [ps] [ad]
+        [Oa] [Ip] [uO] 3
+        7 0 W [ruO]
+        u
+        p s
+        [2i] p s f [etui] [ipsf]
+        [O30ud] [Os] a
+        [6s] [etui]
+        e [etui] p s f
+        [9sj] [eyip] [sj]
+        [5sj] [ryoh] g
+        [8o] a f h [wrtu]
+        w [wrtu] a f h
+        [Qs] f k [tup] [sfj]
+        [D7sh] [etYDG] h
+        [0a] f j [wru] h
+        [9aG] [wru] f
+        [8uod] [wrts] d
+        [7f] [Qed] p
+        [0a] [ery] u p a
+        [0ryui] [Oa] [ad] [ps]
+        [Oa]
+        [W0ru] [ad] [ps]
+        [Oa] [ip] [uO] [yi]
+        [ru]
+        6
+        [etu] [etu]
+        3 [etu] [etu]
+        6 [etu] [etu]
+        [3u] [Wrup] [WOris]
+        [2psf] [etui] [etuif]
+        [3d] [WOyis] [WOyia]
+        [6s] [etuo] [etuo]
+        [6p] [etuos] [etuof]
+        [2sj] [tyip] [tyipsj]
+        [5sj] [ryioh] [ryiog]
+        [8afh] [ruo] [ruo]
+        [5a] [ruof] [ruoh]
+        [$sfk] [tua] [tupsfj]
+        [D7sh] [tpYDG] [Ytoh]
+        [30afj] [rup] [ruoh]
+        [29aG] [ryI] [ryuf]
+        [8uod] [wtus] [wrud]
+        [7f] [Ieyd] [Ieyp]
+        [30a] [ryup] [ryup]
+        [30u] [ryp] [Orys]
+        [2psf] [eti] [etipsf]
+        [3d] [Otus] [Orua]
+        [6s] [tuo] [tuo]
+        [Ewyp] s [8wE] f [4sj] [tup] [tupsj]
+        [4sj] [ryok] [ryoh]
+        g [3h] [ryo] [ryo]
+        [6a] [tuopf] [tuoph]
+        [$sfk] [tuoa] [tuopsfj]
+        7 [YDtoh] G [Ytpg]
+        G [3afj] [ryup] [ryuoh]
+        2 [ruoG] f [ruoD]
+        f [8osf] [tuod] f [tuod]
+        s [7a] [rYI] S [rYID]
+        [3f] [ruO] [ruO]
+        7 [ruO] [ruO]
+        3 [ruO] [ruO]
+        7 [ruO] [Oruf]
+        [5dg] [tip] [tipsf]
+        [5ad] [typs] [ryoa]
+        [8ps] [tyiad] [tuosf]
+        [8uo] [tuo] [tuo]
+        [5dg] [tip] [tipsf]
+        [5ad] [ryps] [ryiad]
+        [8sf] [tuo] [tuo]
+        8 [tuo] [tuof]
+        [0f] G f [ruoD] [ruof]
+        [7h] [ruoG] [ruof]
+        [QD] [rYI] [rYIG]
+        [7a] [rYI] [YIra]
+        [0hk] [ruo] [ruohk]
+        [7hk] [Gruoj] [ruofh]
+        [QGj] [rYI] [rYI]
+        7 [rYI] [rYI]
+        [3fH] [ryi] [ryufH]
+        [3fH] [IGryj] [Hryuk]
+        [6jl] [tuov] C c [tuox]
+        Z z [6l] [tuol] k J [tuoj]
+        H h [2dG] [tyI] [typdG]
+        [2dG] [tyofh] [IGtyj]
+        [5hk] [Iryj] H h [ryIG]
+        g f [5d] [rypj] [ryoh]
+        [*SG] [WTIg] [iWTG]
+        [$j] [EToh] [ETIG]
+        [7af] [erYID] [YIerf]
+        [7G] [eYI] [YIek]
+        [2dgjz] [eyi] [eyul]
+        [2k] [eyi] [etij]
+        [3H] k [Orud] f d [Orus]
+        3 [ts] d s [ya]
+        3 [rp] a p [tO]
+        u [rp] s
+        [2i] p s f [eti] [etip] s
+        f [O3ud] [Otus] [Orua]
+        [6s] [tuo] [tuo]
+        [Ewyp] s [8wE] f [4sfj] [tup]
+        [tupsfj] [4sfj] [ryok]
+        [ryoh] g [3h] [ryoh]
+        G [ryoh] j [6k] h [tuof]
+        a [tuof] h [$hk] [tuop]
+        [tuopj] 7 [Ytoh]
+        G [Ytpg] G [G3j] [ryup]
+        [ryuoh] 2 [ruoG]
+        f [ruoD] f [8sf] [tuoG]
+        h [tuoj] k [7j] [YIrj]
+        h [YIrj] 3 [Oruk] j
+        H [ruOG] f D [7x] Z L [Oruk] j
+        H [ruOG] f D [3x] Z L [Oruk] j
+        H [ruOG] f D [7f] [ruO]
+        [ruO]
+        [sf] [dg] [sf]
+        [dg] [sf] [dg] [ad] [sf] [ad]
+        [sf] [ad] [sf] [ps] [ad] [ps]
+        [ad] [ps] [ad] [Oa] [Ip] [uO]
+        [3d] 7 9
+        0 q W r y u i O
+        d
+        [dg] [fh] [dg]
+        [fh] [dg] [fh] [Sf] [dg] [Sf]
+        [dg] [Sf] [dg] [PS] [ad] [PS]
+        [ad] [PS] [ad] [fPSJ] [oP] [ip]
+        [uo] [ip] [oP] [PS] [oP] [ip]
+        [uo] [ip] [oP] [PSh] [ag]
+        [Pf] [6oS] 0 w
+        e E u T y u
+        o p P h
+        p
+        d g [Eeyij] j
+        [Teuoh] g f [yipg]
+        d g j [Podgjz] [gz]
+        [Ptuodgz] [fl] [dJ] [tupsfjl]
+        u p s [7f] d
+        [0s] a s [6d] s
+        [5a] p O [4p] p
+        [3p] o y [6u]
+        [yup] [yup] [T6up] [E5yip] p
+        [T6euo] i u [9eti]
+        y i p [5wyid] [id]
+        [8wtid] [us] [yP] [4ups]
+        f j l [padgx] z
+        [OHadfl] k l [psfhz] l
+        [osfhk] j H [ipsfj] h g
+        [Ouadf] G H [6ea] S f j f [5i] p s g 9 w e [tif] [5id] [us] [ya] [8us] w [tid] y [uof] [8uo] w t y [tyo] w [5sg]
+        9 w [tyi] [pf] [5id] [us] [id] [8of] w t y t w 8 w t y t w [3f] [uo] D [YI] f [uo] [3h] [oa] G [Ip] f [uo] [7D]
+        r E
+        r [tG] r [7a] r t
+        r [ea] Q [3h] [uo]
+        [ru] h [uo] [3h] [ru] G
+        [Ip] f [ru] [7G] r t
+        y t r [7h] G g f D d
+        S s a [3fH] [ryi]
+        [ryufH] [3fH] [IGryj]
+        [Hryuk] [6jl] [tuov] C
+        c [tuox] Z z [6l] [tuol] k
+        J [tuoj] H h [2dG] [tyI]
+        [typdG] [2dG] [tyofh]
+        [IGtyj] [5hk] [Iryj] H
+        h [ryIG] g f [5d] [rypj]
+        [ryoh] [*G] [WTIg]
+        [iWTG] [$j] [EToh]
+        [ETIG] [7f] [erYID]
+        [YIerf] [7paDG] [eYI]
+        [YIek] [2dgjz] [eyi]
+        [eyul] [2k] [eyi]
+        [etij] [3H] k [Orud] f
+        d [Orus] 3 [ts] d
+        s [ya] 3 [rp] a
+        p [tO] 3 i O
+        i u [qi]
+        [EP] [TS] $
+        [$I] $ $ $ $ a $ $
+        $ $ d $ $ $ [3G] [Iryoa]
+        [ryoaIG] [$f] [EPuod]
+        [uoEPS] [7d] [Iryp]
+        [Iryp] [7a] [Irypd]
+        [rypIG] [3k] [yuoa]
+        [yuoak] [6k] [Tuopj]
+        [Tuoph] [2j] [TIp]
+        [TIp] [6S] [pTIG]
+        [TIpj] [%L] [yIS]
+        [Iyak] [*j] [yiaH]
+        [yipj] [$k] [TIa]
+        [TIpj] [3H] [uTO]
+        [uTIG] [2f] [Ieyd]
+        [TIef] [*G] [Oruf]
+        [Orua] [$S] [TIua]
+        [TIua] [$QIG] [Tuak]
+        [TPudz] [3GC] [ryoGC]
+        [ryoGC] [$fx] [IPyfx]
+        [SL] [TIPfx] [SL] [7z] L [Iypk]
+        G [Iypd] S [Ieya] d
+        [9et] G [G5dk] [Iya] [Gdk] [Iya] [Gdk] [5k]
+        [upTL] [Tupj] h [$j]
+        [upTG] f [upTG] j [7SG] f
+        [Iypad] S [ypaIG] j [%L]
+        [ypIS] [Iypak] *
+        [yipj] H [yiah] H [$k]
+        [TIua] [TIupj] 3
+        [pTIH] G [TIpg] G [2C]
+        [Iypx] C [Iypx] z [*L]
+        [iTO] Z [TOic] [$J] L C
+        [QET] [QET] *
+        [QET] [QET] $
+        [QET] [QET] *
+        [OHV] [IGC] [igc] [IGC] [7ad]
+        [p$S] [*Oa] 9 [i*S]
+        [Ya] [iO]
+        * [$G] J L
+        [QET] [QET] $
+        [QET] [QET] [QETI] i
+        I P [Qrya] d [QETS] s
+        S g [ryQG] H [ETIJ] H
+        J L [WTiz] c [ETIC]
+        [$*QT] I P S
+`;
+        console.log(sheet.split(/[\[\]\s]+/).filter(Boolean));
+        let array = sheet.split(/[\[\]\s]+/).filter(Boolean);
+        let track = document.getElementById('track');
+        for (let i = 0; i < array.length; i++) {
+            let note = document.createElement('div');
+            note.className = 'note white';
+            for (let j = 0; j < array[i].length; j++) {
+                console.log(keyObject[array[i].charAt(j)]);
+                let midi = document.createElement("div");
+                midi.innerHTML = keyObject[array[i].charAt(j)];
+                midi.style = `position:absolute;top:${800 - keySequence[array[i].charAt(j)] * 10}px;left:${i * 10}px`;
+
+                if (midi.innerHTML.includes("#")) {
+                    midi.className = 'midi black';
+                } else {
+                    midi.className = 'midi white';
+                }
+
+                note.append(midi);
+            }
+            console.log(array[i]);
+            track.append(note);
+        }
+        let noteElements = document.getElementsByClassName('note');
+        let cursor = 0;
+        document.addEventListener('keydown', function (e) {
+            let array = [];
+            let midiElements = noteElements[0].getElementsByClassName('midi');
+            for (let i = 0; i < midiElements.length; i++) {
+                array.push(midiElements[i].innerHTML);
+            }
+            console.log(array);
+            emotional.triggerAttackRelease(array, "4n");
+            noteElements[0].remove();
+            let track = document.getElementById('track');
+            cursor -= 10;
+            track.style.left = cursor + 'px';
+        });
+    </script>
+</body>
+
+</html>
